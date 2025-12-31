@@ -52,6 +52,7 @@ const App: React.FC = () => {
       try {
         await window.aistudio.openSelectKey();
         setApiError(null);
+        // Instruct user that the key selection process has been initiated
       } catch (e) {
         console.error("Failed to open key dialog", e);
       }
@@ -134,10 +135,11 @@ const App: React.FC = () => {
       console.error("Submission Error:", error);
       const errorMessage = error.message?.toLowerCase() || "";
       
+      // Handle Quota/Billing errors specifically
       if (errorMessage.includes("quota") || errorMessage.includes("429") || errorMessage.includes("resource_exhausted")) {
         setApiError("quota");
       } else if (errorMessage.includes("not found")) {
-        // According to instructions: if "Requested entity was not found", reset and prompt
+        // If entity not found (often due to stale key), reset and prompt
         setApiError("quota");
         handleOpenKeyDialog();
       } else {
@@ -173,15 +175,15 @@ const App: React.FC = () => {
           <div className="text-center space-y-8 py-4">
             <div className="bg-indigo-50/50 p-8 rounded-3xl text-indigo-900 text-right space-y-4 border border-indigo-100">
               <h3 className="font-black text-2xl flex items-center">
-                <span className="bg-indigo-600 text-white w-8 h-8 rounded-lg flex items-center justify-center ml-3 text-base">۱</span>
-                استفاده از کلید شخصی (خارجی)
+                <span className="bg-indigo-600 text-white w-8 h-8 rounded-lg flex items-center justify-center ml-3 text-base">🔑</span>
+                استفاده از کلید API اختصاصی
               </h3>
               <p className="leading-loose text-lg opacity-90">
-                اگر کلید API اختصاصی دارید، می‌توانید با کلیک روی آیکون <span className="inline-block p-1 bg-white border rounded mx-1">🔑</span> در بالا، آن را متصل کنید. این کار به شما اجازه می‌دهد بدون محدودیت سهمیه (Quota) مطالعه کنید.
+                این برنامه به شما اجازه می‌دهد از هر حسابی که دارید کلید API وارد کنید. با کلیک بر روی آیکون کلید در بالای صفحه، پروژه Google Cloud مورد نظر خود را انتخاب کنید تا محدودیت سهمیه (Quota) رفع شود.
               </p>
               <div className="bg-indigo-600 text-white p-4 rounded-2xl text-sm font-bold flex items-center shadow-lg shadow-indigo-100">
                 <svg className="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                پیشنهاد: برای پایداری بیشتر، از کلید اختصاصی خود استفاده کنید.
+                بدون محدودیت و با کلید اختصاصی خود مطالعه کنید.
               </div>
             </div>
             <button
@@ -218,21 +220,18 @@ const App: React.FC = () => {
               <div className="bg-amber-50 border-2 border-amber-200 p-6 rounded-2xl text-amber-900 space-y-4 animate-in slide-in-from-top-4">
                 <div className="flex items-center font-black text-lg">
                   <svg className="w-6 h-6 ml-2 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                  {apiError === 'quota' ? 'محدودیت سهمیه (Quota) یا کلید نامعتبر' : 'خطای غیرمنتظره'}
+                  {apiError === 'quota' ? 'نیاز به تنظیم کلید API اختصاصی' : 'خطای غیرمنتظره در ارتباط با هوش مصنوعی'}
                 </div>
                 <p className="text-sm leading-relaxed opacity-90">
-                  برای ادامه بدون وقفه، روی دکمه زیر کلیک کنید و پروژه‌ای را انتخاب کنید که دارای اعتبار است. این کار به شما اجازه می‌دهد از سهمیه شخصی خود استفاده کنید.
+                  سهمیه رایگان به پایان رسیده است. برای ادامه با استفاده از سهمیه شخصی خود (از هر اکانتی)، بر روی دکمه زیر کلیک کرده و پروژه خود را انتخاب کنید.
                 </p>
                 <button 
                   onClick={handleOpenKeyDialog}
                   className="w-full py-4 bg-amber-600 text-white rounded-xl font-black hover:bg-amber-700 transition-all shadow-lg flex items-center justify-center"
                 >
                   <svg className="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
-                  اتصال کلید اختصاصی (از اکانت دیگر)
+                  اتصال کلید API شخصی (رفع Quota)
                 </button>
-                <div className="text-center">
-                  <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-[10px] underline opacity-50">درباره فعال‌سازی Billing و دریافت کلید بیشتر بخوانید</a>
-                </div>
               </div>
             )}
 
@@ -251,7 +250,7 @@ const App: React.FC = () => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>تحلیل با هوش مصنوعی...</span>
+                  <span>در حال تحلیل هوشمند...</span>
                 </>
               ) : (
                 'بررسی و ثبت پاسخ'
