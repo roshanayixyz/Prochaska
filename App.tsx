@@ -44,7 +44,6 @@ const App: React.FC = () => {
   };
 
   const handleApiError = (error: any) => {
-    // نمایش مستقیم پیام خطا برای عیب‌یابی دقیق‌تر توسط کاربر
     setApiError(`خطای مدل: ${error.message || "ارتباط با سرور برقرار نشد"}`);
     if (error.message?.toLowerCase().includes("key") || error.message?.toLowerCase().includes("401")) {
       setIsKeySetupOpen(true);
@@ -116,7 +115,7 @@ const App: React.FC = () => {
         <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-8 border border-white relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
           <h2 className="text-2xl font-black text-slate-800 mb-6 text-center">تنظیم کلید API</h2>
-          <p className="text-sm text-slate-500 mb-6 text-center">برای استفاده از مدل gemma-3-27b کلید معتبر وارد کنید.</p>
+          <p className="text-sm text-slate-500 mb-6 text-center">برای استفاده از مدل هوش مصنوعی کلید خود را وارد کنید.</p>
           <div className="space-y-4">
             <input 
               type="password"
@@ -143,7 +142,7 @@ const App: React.FC = () => {
           <div className="bg-indigo-600 text-white p-2 rounded-xl ml-3">
              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
           </div>
-          <div><h1 className="text-xl font-black text-indigo-900">نظام‌های روان‌درمانی</h1><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Gemma 3 27B Powered</p></div>
+          <div><h1 className="text-xl font-black text-indigo-900">نظام‌های روان‌درمانی</h1><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Powered by Gemini 3 Pro</p></div>
         </div>
         <button onClick={() => setIsKeySetupOpen(true)} className="p-3 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-colors">
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /></svg>
@@ -151,7 +150,7 @@ const App: React.FC = () => {
       </header>
 
       {apiError && (
-        <div className="w-full mb-6 bg-rose-50 border-2 border-rose-200 p-4 rounded-2xl text-rose-800 text-sm flex items-center justify-between animate-bounce">
+        <div className="w-full mb-6 bg-rose-50 border-2 border-rose-200 p-4 rounded-2xl text-rose-800 text-sm flex items-center justify-between animate-in slide-in-from-top-4">
           <div className="flex items-center">
             <svg className="w-5 h-5 ml-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
             <span className="font-bold">{apiError}</span>
@@ -167,7 +166,8 @@ const App: React.FC = () => {
           <div className="bg-white rounded-[2.5rem] shadow-xl p-8 md:p-12 text-center border border-white">
             <div className="max-w-2xl mx-auto space-y-8">
               <div className="bg-indigo-50 p-6 rounded-3xl inline-block mb-4"><span className="text-5xl">🧠</span></div>
-              <h2 className="text-3xl font-black text-slate-800">شروع چالش ۱۰۰ سواله با Gemma 3</h2>
+              <h2 className="text-3xl font-black text-slate-800">شروع چالش ۱۰۰ سواله با Gemini 3 Pro</h2>
+              <p className="text-slate-600 leading-relaxed text-lg italic">از پیشرفته‌ترین مدل گوگل برای ارزیابی دقیق پاسخ‌های تشریحی استفاده می‌کنیم.</p>
               <button onClick={startQuiz} className="px-12 py-5 bg-indigo-600 text-white rounded-2xl font-black text-xl hover:bg-indigo-700 transition-all shadow-xl active:scale-95">شروع آزمون</button>
             </div>
           </div>
@@ -194,7 +194,7 @@ const App: React.FC = () => {
                   disabled={!userAnswer.trim() || isEvaluating}
                   className={`w-full mt-6 py-6 rounded-3xl font-black text-xl text-white transition-all shadow-lg ${!userAnswer.trim() || isEvaluating ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                 >
-                  {isEvaluating ? 'Gemma در حال تحلیل...' : 'ثبت و تصحیح'}
+                  {isEvaluating ? 'در حال تحلیل با Gemini 3 Pro...' : 'ثبت و تصحیح'}
                 </button>
               </div>
             </div>
