@@ -7,6 +7,7 @@ import { generateQuestionAudio } from './services/ttsService';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.HOME);
+  const [isKeyConnected, setIsKeyConnected] = useState<boolean | null>(null);
   const [progress, setProgress] = useState<QuizProgress>({
     currentIndex: 0,
     correctCount: 0,
@@ -23,8 +24,19 @@ const App: React.FC = () => {
   
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // Persistence logic
+  // Check API Key status on mount
   useEffect(() => {
+    const checkKey = async () => {
+      if (window.aistudio?.hasSelectedApiKey) {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setIsKeyConnected(hasKey);
+      } else {
+        // Fallback for environments where aistudio helper is not present
+        setIsKeyConnected(!!process.env.API_KEY);
+      }
+    };
+    checkKey();
+
     const savedHistory = localStorage.getItem('quiz_history');
     if (savedHistory) {
       try { setHistory(JSON.parse(savedHistory)); } catch (e) { console.error(e); }
@@ -37,17 +49,21 @@ const App: React.FC = () => {
     }
   }, [history]);
 
-  const currentQuestionId = progress.queue[progress.currentIndex];
-  const currentQuestion = QUESTIONS.find(q => q.id === currentQuestionId);
-
-  const handleSelectKey = async () => {
+  const handleConnectKey = async () => {
     if (window.aistudio?.openSelectKey) {
       await window.aistudio.openSelectKey();
+      // Assume success as per instructions to avoid race conditions
+      setIsKeyConnected(true);
       setApiError(null);
+    } else {
+      alert("این قابلیت در این محیط در دسترس نیست.");
     }
   };
 
   const playQuestionAudio = async () => {
+    const currentQuestionId = progress.queue[progress.currentIndex];
+    const currentQuestion = QUESTIONS.find(q => q.id === currentQuestionId);
+    
     if (!currentQuestion || isPlayingAudio) return;
     setIsPlayingAudio(true);
     setApiError(null);
@@ -70,7 +86,10 @@ const App: React.FC = () => {
 
   const handleApiError = (error: any) => {
     const msg = error.message?.toLowerCase() || "";
-    if (msg.includes("429") || msg.includes("quota")) {
+    if (msg.includes("requested entity was not found")) {
+      setIsKeyConnected(false); // Reset key state to prompt re-selection
+      setApiError("key_missing");
+    } else if (msg.includes("429") || msg.includes("quota")) {
       setApiError("quota");
     } else if (msg.includes("api_key") || msg.includes("key") || msg.includes("401") || msg.includes("403")) {
       setApiError("key_missing");
@@ -89,6 +108,9 @@ const App: React.FC = () => {
   };
 
   const handleNext = (shouldRepeat: boolean) => {
+    const currentQuestionId = progress.queue[progress.currentIndex];
+    const currentQuestion = QUESTIONS.find(q => q.id === currentQuestionId);
+
     if (shouldRepeat && currentQuestion) {
       setProgress(prev => {
         const newQueue = [...prev.queue];
@@ -111,6 +133,9 @@ const App: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    const currentQuestionId = progress.queue[progress.currentIndex];
+    const currentQuestion = QUESTIONS.find(q => q.id === currentQuestionId);
+    
     if (!userAnswer.trim() || !currentQuestion) return;
     setIsEvaluating(true);
     setApiError(null);
@@ -131,6 +156,42 @@ const App: React.FC = () => {
     }
   };
 
+  if (isKeyConnected === false) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 font-['Vazirmatn'] text-right" dir="rtl">
+        <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-8 border border-white text-center">
+          <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center text-indigo-600 mx-auto mb-6">
+            <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+          </div>
+          <h2 className="text-2xl font-black text-slate-800 mb-4">اتصال به هوش مصنوعی</h2>
+          <p className="text-slate-600 leading-loose mb-8 text-sm">
+            برای استفاده از سیستم تحلیل هوشمند و تبدیل متن به گفتار، لطفاً کلید API شخصی خود را متصل کنید. 
+            شما باید از یک پروژه دارای پرداخت (Billing) استفاده کنید.
+          </p>
+          <div className="space-y-4">
+            <button 
+              onClick={handleConnectKey}
+              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg active:scale-95"
+            >
+              انتخاب کلید API
+            </button>
+            <a 
+              href="https://ai.google.dev/gemini-api/docs/billing" 
+              target="_blank" 
+              rel="noreferrer"
+              className="block text-xs text-indigo-500 font-bold hover:underline"
+            >
+              مشاهده مستندات پرداخت گوگل
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const currentQuestionId = progress.queue[progress.currentIndex];
+  const currentQuestion = QUESTIONS.find(q => q.id === currentQuestionId);
+
   return (
     <div className="min-h-screen flex flex-col items-center py-8 px-4 max-w-4xl mx-auto text-slate-900 bg-slate-50 font-['Vazirmatn']" dir="rtl">
       <header className="w-full mb-8 flex items-center justify-between">
@@ -139,30 +200,16 @@ const App: React.FC = () => {
           <h1 className="text-3xl font-black text-indigo-900 mb-1">نظام‌های روان‌درمانی</h1>
           <p className="text-sm text-slate-500 font-medium">آزمون جامع بر اساس پروچاسکا</p>
         </div>
-        <div>
-          {window.aistudio?.openSelectKey ? (
-            <button onClick={handleSelectKey} className="w-12 h-12 bg-white shadow-md rounded-2xl flex items-center justify-center text-indigo-600 border border-indigo-50 transition-all hover:bg-indigo-600 hover:text-white">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
-            </button>
-          ) : (
-            <div className="w-12 h-12 flex items-center justify-center text-indigo-200">
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
-            </div>
-          )}
-        </div>
+        <button onClick={handleConnectKey} className="w-12 h-12 bg-white shadow-md rounded-2xl flex items-center justify-center text-indigo-600 border border-indigo-50 transition-all hover:bg-indigo-600 hover:text-white group">
+          <svg className="w-6 h-6 transition-transform group-hover:rotate-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+        </button>
       </header>
 
-      <main className="w-full bg-white shadow-xl rounded-[2.5rem] p-6 md:p-12 border border-white">
-        {apiError === 'key_missing' && (
-          <div className="mb-6 bg-red-50 border-2 border-red-200 p-6 rounded-3xl text-red-900">
-            <h4 className="font-black text-lg mb-2 flex items-center">
-              <svg className="w-6 h-6 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-              خطای کلید API
-            </h4>
-            <p className="text-sm leading-relaxed mb-4">
-              کلید API معتبری یافت نشد. اگر برنامه را روی کلودفلر دیپلوی کرده‌اید، باید در تنظیمات <b>Settings > Variables</b> یک متغیر با نام <code className="bg-red-200 px-1 rounded">API_KEY</code> تعریف کرده و مقدار کلید خود را در آن قرار دهید.
-            </p>
-            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="inline-block bg-red-600 text-white px-6 py-2 rounded-xl text-sm font-bold">دریافت کلید جدید</a>
+      <main className="w-full bg-white shadow-xl rounded-[2.5rem] p-6 md:p-12 border border-white relative overflow-hidden">
+        {apiError && (
+          <div className="mb-6 bg-red-50 border-2 border-red-100 p-4 rounded-2xl text-red-800 text-sm flex items-center">
+            <svg className="w-5 h-5 ml-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+            <span>{apiError === 'quota' ? 'سهمیه استفاده شما تمام شده است.' : 'خطایی در ارتباط با هوش مصنوعی رخ داد. دوباره تلاش کنید.'}</span>
           </div>
         )}
 
