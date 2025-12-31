@@ -13,7 +13,7 @@ export const evaluateAnswer = async (
   
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemma-3-27b",
       contents: `
         Compare the user's answer to the reference answer for the psychology question below.
         Question: ${question}
@@ -44,7 +44,6 @@ export const evaluateAnswer = async (
     return JSON.parse(text) as EvaluationResult;
   } catch (error: any) {
     console.error("AI Evaluation Error:", error);
-    // Rethrow to allow the UI to handle specific error types (key invalid, quota, etc.)
     throw error;
   }
 };
