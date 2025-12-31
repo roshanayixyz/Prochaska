@@ -7,6 +7,7 @@ export const evaluateAnswer = async (
   correctAnswer: string,
   userAnswer: string
 ): Promise<EvaluationResult> => {
+  // Always create a new instance to ensure we use the latest API key from the environment
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
@@ -42,10 +43,13 @@ export const evaluateAnswer = async (
     return JSON.parse(text) as EvaluationResult;
   } catch (error: any) {
     console.error("AI Evaluation Error:", error);
-    // Propagate quota or auth errors specifically
-    if (error.message?.includes("quota") || error.message?.includes("429") || error.message?.includes("API_KEY")) {
-      throw error; 
+    
+    // Check for quota or not found errors to handle in the UI
+    const errorMessage = error.message?.toLowerCase() || "";
+    if (errorMessage.includes("quota") || errorMessage.includes("429") || errorMessage.includes("resource_exhausted") || errorMessage.includes("not found")) {
+      throw error; // Rethrow to be caught by the App component for specific UI handling
     }
+    
     return {
       isCorrect: false,
       score: 0,
