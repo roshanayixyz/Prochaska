@@ -8,7 +8,6 @@ export const evaluateAnswer = async (
   userAnswer: string,
   apiKey: string
 ): Promise<EvaluationResult> => {
-  // Create a fresh instance with the provided key
   const ai = new GoogleGenAI({ apiKey });
   
   try {
@@ -23,15 +22,17 @@ export const evaluateAnswer = async (
         Assess if the user's answer is semantically correct and captures the core concepts of the reference answer.
         Provide a score from 0 to 10 (where 7 or above is considered correct).
         Give a brief constructive feedback in Persian.
+        
+        IMPORTANT: Your output MUST be a valid JSON object.
       `,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            isCorrect: { type: Type.BOOLEAN, description: "True if the score is 7 or above." },
-            score: { type: Type.NUMBER, description: "Score from 0 to 10." },
-            feedback: { type: Type.STRING, description: "Constructive feedback in Persian." },
+            isCorrect: { type: Type.BOOLEAN },
+            score: { type: Type.NUMBER },
+            feedback: { type: Type.STRING },
           },
           required: ["isCorrect", "score", "feedback"],
         },
@@ -39,11 +40,12 @@ export const evaluateAnswer = async (
     });
 
     const text = response.text;
-    if (!text) throw new Error("Empty response from AI");
+    if (!text) throw new Error("مدل پاسخی ارسال نکرد.");
     
     return JSON.parse(text) as EvaluationResult;
   } catch (error: any) {
-    console.error("AI Evaluation Error:", error);
-    throw error;
+    console.error("AI Detailed Error:", error);
+    // بازگرداندن متن خطا برای نمایش در UI
+    throw new Error(error.message || "خطای ناشناخته در مدل Gemma");
   }
 };
