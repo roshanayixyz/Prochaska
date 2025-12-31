@@ -21,17 +21,9 @@ const App: React.FC = () => {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [lastResult, setLastResult] = useState<EvaluationResult | null>(null);
   const [history, setHistory] = useState<Record<number, Attempt[]>>({});
-  const [apiError, setApiError] = useState<'quota' | 'key_missing' | 'general' | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
   
   const audioContextRef = useRef<AudioContext | null>(null);
-
-  // Sync custom key with process.env for services
-  useEffect(() => {
-    if (customKey) {
-      process.env.API_KEY = customKey;
-      localStorage.setItem('USER_CUSTOM_API_KEY', customKey);
-    }
-  }, [customKey]);
 
   useEffect(() => {
     const savedHistory = localStorage.getItem('quiz_history');
@@ -46,16 +38,27 @@ const App: React.FC = () => {
     }
   }, [history]);
 
-  const handleConnectKey = async () => {
-    if (window.aistudio?.openSelectKey) {
-      try {
-        await window.aistudio.openSelectKey();
-        setApiError(null);
-      } catch (e) {
-        setIsKeySetupOpen(true);
-      }
-    } else {
+  const saveApiKey = (key: string) => {
+    setCustomKey(key);
+    localStorage.setItem('USER_CUSTOM_API_KEY', key);
+    setIsKeySetupOpen(false);
+    setApiError(null);
+  };
+
+  const handleApiError = (error: any) => {
+    const msg = error.message?.toLowerCase() || "";
+    console.error("API Error Detailed:", error);
+
+    if (msg.includes("requested entity was not found")) {
+      setApiError("کلید وارد شده معتبر نیست یا دسترسی به این مدل را ندارد.");
       setIsKeySetupOpen(true);
+    } else if (msg.includes("429") || msg.includes("quota") || msg.includes("limit")) {
+      setApiError("محدودیت تعداد درخواست در دقیقه (RPM) برای اکانت رایگان تمام شده است. لحظاتی صبر کنید.");
+    } else if (msg.includes("api_key") || msg.includes("key") || msg.includes("401") || msg.includes("403")) {
+      setApiError("کلید API نامعتبر است.");
+      setIsKeySetupOpen(true);
+    } else {
+      setApiError("خطایی در ارتباط با هوش مصنوعی رخ داد. لطفاً کلید و اتصال خود را چک کنید.");
     }
   };
 
@@ -64,7 +67,8 @@ const App: React.FC = () => {
     const currentQuestion = QUESTIONS.find(q => q.id === currentQuestionId);
     
     if (!currentQuestion || isPlayingAudio) return;
-    if (!process.env.API_KEY && !customKey) {
+    const apiKey = customKey || process.env.API_KEY;
+    if (!apiKey) {
       setIsKeySetupOpen(true);
       return;
     }
@@ -72,7 +76,7 @@ const App: React.FC = () => {
     setIsPlayingAudio(true);
     setApiError(null);
     try {
-      const buffer = await generateQuestionAudio(currentQuestion.question);
+      const buffer = await generateQuestionAudio(currentQuestion.question, apiKey);
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
@@ -82,26 +86,14 @@ const App: React.FC = () => {
       source.onended = () => setIsPlayingAudio(false);
       source.start();
     } catch (error: any) {
-      console.error("TTS Error:", error);
       setIsPlayingAudio(false);
       handleApiError(error);
     }
   };
 
-  const handleApiError = (error: any) => {
-    const msg = error.message?.toLowerCase() || "";
-    if (msg.includes("api_key") || msg.includes("key") || msg.includes("401") || msg.includes("403")) {
-      setApiError("key_missing");
-      setIsKeySetupOpen(true);
-    } else if (msg.includes("429") || msg.includes("quota")) {
-      setApiError("quota");
-    } else {
-      setApiError("general");
-    }
-  };
-
   const startQuiz = () => {
-    if (!process.env.API_KEY && !customKey) {
+    const apiKey = customKey || process.env.API_KEY;
+    if (!apiKey) {
       setIsKeySetupOpen(true);
       return;
     }
@@ -141,13 +133,14 @@ const App: React.FC = () => {
   const handleSubmit = async () => {
     const currentQuestionId = progress.queue[progress.currentIndex];
     const currentQuestion = QUESTIONS.find(q => q.id === currentQuestionId);
+    const apiKey = customKey || process.env.API_KEY;
     
-    if (!userAnswer.trim() || !currentQuestion) return;
+    if (!userAnswer.trim() || !currentQuestion || !apiKey) return;
     setIsEvaluating(true);
     setApiError(null);
     
     try {
-      const result = await evaluateAnswer(currentQuestion.question, currentQuestion.answer, userAnswer);
+      const result = await evaluateAnswer(currentQuestion.question, currentQuestion.answer, userAnswer, apiKey);
       const newAttempt: Attempt = { text: userAnswer, timestamp: Date.now(), result };
       setHistory(prev => ({ ...prev, [currentQuestion.id]: [...(prev[currentQuestion.id] || []), newAttempt] }));
       setLastResult(result);
@@ -155,14 +148,12 @@ const App: React.FC = () => {
       if (result.isCorrect) setProgress(prev => ({ ...prev, correctCount: prev.correctCount + 1 }));
       else setProgress(prev => ({ ...prev, incorrectCount: prev.incorrectCount + 1 }));
     } catch (error: any) {
-      console.error("Evaluation Error:", error);
       handleApiError(error);
     } finally {
       setIsEvaluating(false);
     }
   };
 
-  // UI for Key Setup
   if (isKeySetupOpen || (!customKey && !process.env.API_KEY && appState === AppState.HOME)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 font-['Vazirmatn'] text-right" dir="rtl">
@@ -172,26 +163,26 @@ const App: React.FC = () => {
             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
           </div>
           <h2 className="text-2xl font-black text-slate-800 mb-2 text-center">تنظیم کلید هوش مصنوعی</h2>
-          <p className="text-slate-500 text-sm mb-8 text-center leading-relaxed">برای استفاده از سیستم تحلیل پاسخ‌ها و صوت، لطفاً کلید API خود را وارد کنید. این کلید فقط در مرورگر شما ذخیره می‌شود.</p>
+          <p className="text-slate-500 text-sm mb-8 text-center leading-relaxed">برای استفاده از حساب رایگان گوگل، کلید API خود را وارد کنید.</p>
           
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-black text-slate-400 mb-2 mr-2 uppercase tracking-wider">Gemini API Key</label>
               <input 
                 type="password"
-                value={customKey}
-                onChange={(e) => setCustomKey(e.target.value)}
+                defaultValue={customKey}
+                onBlur={(e) => setCustomKey(e.target.value)}
                 placeholder="AIzaSy..."
                 className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 transition-all outline-none font-mono text-sm"
               />
             </div>
             
             <button 
-              onClick={() => { if(customKey) setIsKeySetupOpen(false); }}
+              onClick={() => saveApiKey(customKey)}
               className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg active:scale-95 disabled:opacity-50"
               disabled={!customKey}
             >
-              ذخیره و ادامه
+              ذخیره و شروع
             </button>
             
             <div className="pt-2 text-center">
@@ -214,20 +205,20 @@ const App: React.FC = () => {
           <h1 className="text-3xl font-black text-indigo-900 mb-1">نظام‌های روان‌درمانی</h1>
           <p className="text-sm text-slate-500 font-medium">آزمون جامع بر اساس پروچاسکا</p>
         </div>
-        <button onClick={handleConnectKey} className="w-12 h-12 bg-white shadow-md rounded-2xl flex items-center justify-center text-indigo-600 border border-indigo-50 transition-all hover:bg-indigo-600 hover:text-white group relative">
+        <button onClick={() => setIsKeySetupOpen(true)} className="w-12 h-12 bg-white shadow-md rounded-2xl flex items-center justify-center text-indigo-600 border border-indigo-50 transition-all hover:bg-indigo-600 hover:text-white group relative">
           <svg className="w-6 h-6 transition-transform group-hover:rotate-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
-          {customKey && <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white"></span>}
+          <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white"></span>
         </button>
       </header>
 
       <main className="w-full bg-white shadow-xl rounded-[2.5rem] p-6 md:p-12 border border-white relative overflow-hidden">
         {apiError && (
-          <div className="mb-6 bg-red-50 border-2 border-red-100 p-4 rounded-2xl text-red-800 text-sm flex items-center justify-between">
+          <div className="mb-6 bg-amber-50 border-2 border-amber-100 p-4 rounded-2xl text-amber-800 text-sm flex items-center justify-between">
             <div className="flex items-center">
               <svg className="w-5 h-5 ml-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-              <span>{apiError === 'quota' ? 'سهمیه استفاده شما تمام شده است.' : 'خطایی در ارتباط با هوش مصنوعی رخ داد.'}</span>
+              <span>{apiError}</span>
             </div>
-            <button onClick={() => setIsKeySetupOpen(true)} className="bg-white px-3 py-1 rounded-lg border border-red-200 text-xs font-black hover:bg-red-100 transition-colors">بررسی کلید</button>
+            <button onClick={() => setIsKeySetupOpen(true)} className="bg-white px-3 py-1 rounded-lg border border-amber-200 text-xs font-black hover:bg-amber-100 transition-colors shrink-0 mr-2">بررسی کلید</button>
           </div>
         )}
 

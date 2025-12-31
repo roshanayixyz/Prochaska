@@ -5,10 +5,11 @@ import { EvaluationResult } from "../types";
 export const evaluateAnswer = async (
   question: string,
   correctAnswer: string,
-  userAnswer: string
+  userAnswer: string,
+  apiKey: string
 ): Promise<EvaluationResult> => {
-  // Always create a new instance to ensure we use the latest API key from the environment
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Create a fresh instance with the provided key
+  const ai = new GoogleGenAI({ apiKey });
   
   try {
     const response = await ai.models.generateContent({
@@ -43,17 +44,7 @@ export const evaluateAnswer = async (
     return JSON.parse(text) as EvaluationResult;
   } catch (error: any) {
     console.error("AI Evaluation Error:", error);
-    
-    // Check for quota or not found errors to handle in the UI
-    const errorMessage = error.message?.toLowerCase() || "";
-    if (errorMessage.includes("quota") || errorMessage.includes("429") || errorMessage.includes("resource_exhausted") || errorMessage.includes("not found")) {
-      throw error; // Rethrow to be caught by the App component for specific UI handling
-    }
-    
-    return {
-      isCorrect: false,
-      score: 0,
-      feedback: "خطایی در پردازش رخ داد. لطفاً دوباره تلاش کنید."
-    };
+    // Rethrow to allow the UI to handle specific error types (key invalid, quota, etc.)
+    throw error;
   }
 };

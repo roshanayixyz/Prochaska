@@ -1,8 +1,8 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
 
-export async function generateQuestionAudio(text: string): Promise<AudioBuffer> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export async function generateQuestionAudio(text: string, apiKey: string): Promise<AudioBuffer> {
+  const ai = new GoogleGenAI({ apiKey });
   
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash-preview-tts",
